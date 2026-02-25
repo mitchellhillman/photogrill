@@ -7,7 +7,10 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "Photogrill",
-            path: "Sources/Photogrill"
+            path: "Sources/Photogrill",
+            resources: [
+                .process("Resources")
+            ]
         )
     ]
 )
