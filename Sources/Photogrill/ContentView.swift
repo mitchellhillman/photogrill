@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 
 @MainActor
 class AppState: ObservableObject {
@@ -11,6 +12,16 @@ class AppState: ObservableObject {
     let exportEngine = ExportEngine()
 
     private var lastRenderKey: RenderKey? = nil
+    private var cancellables = Set<AnyCancellable>()
+
+    init() {
+        // Re-render previews and thumbnails whenever a visual setting changes.
+        // Debounce prevents thrashing while a slider is being dragged.
+        settings.objectWillChange
+            .debounce(for: .milliseconds(100), scheduler: RunLoop.main)
+            .sink { [weak self] _ in self?.settingsDidChange() }
+            .store(in: &cancellables)
+    }
 
     var selectedItem: FileItem? {
         guard let id = selectedID else { return nil }
@@ -75,8 +86,5 @@ struct ContentView: View {
             ThumbnailStripView(appState: state)
                 .frame(minHeight: 130, maxHeight: 160)
         }
-        .onChange(of: state.settings.whiteBalance) { _ in state.settingsDidChange() }
-        .onChange(of: state.settings.colorProfile) { _ in state.settingsDidChange() }
-        .onChange(of: state.settings.exposure)     { _ in state.settingsDidChange() }
     }
 }
