@@ -50,6 +50,7 @@ class ExportSettings: ObservableObject {
     @Published var outputFolder: URL? = nil
     @Published var colorProfile: ColorProfile = .sRGB
     @Published var whiteBalance: WhiteBalance = .asShot
+    @Published var kelvin: Double = 5500
     @Published var exposure: Double = 0.0
 
     /// Settings that affect rendered pixel appearance (thumbnail/preview invalidation).
@@ -57,6 +58,7 @@ class ExportSettings: ObservableObject {
         RenderKey(
             colorProfile: colorProfile,
             whiteBalance: whiteBalance,
+            kelvin: kelvin,
             exposure: exposure
         )
     }
@@ -65,5 +67,6 @@ class ExportSettings: ObservableObject {
 struct RenderKey: Equatable {
     let colorProfile: ColorProfile
     let whiteBalance: WhiteBalance
+    let kelvin: Double
     let exposure: Double
 }

@@ -19,10 +19,13 @@ struct RenderCore {
     static func makeFilter(url: URL, key: RenderKey) -> CIRAWFilter? {
         guard let filter = CIRAWFilter(imageURL: url) else { return nil }
 
-        // For preset WB temperatures, override neutralTemperature.
+        // For preset/custom temperatures, set neutralTemperature from key.kelvin.
         // For asShot / auto, leave the filter at its default (camera profile).
-        if let k = key.whiteBalance.kelvin {
-            filter.neutralTemperature = k
+        switch key.whiteBalance {
+        case .asShot, .auto:
+            break
+        default:
+            filter.neutralTemperature = Float(key.kelvin)
             filter.neutralTint = 0
         }
 
