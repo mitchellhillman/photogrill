@@ -1,6 +1,35 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
+private let rawExtensions: Set<String> = [
+    "arw", "cr2", "cr3", "nef", "nrw", "dng", "raf",
+    "rw2", "orf", "pef", "ptx", "srw", "3fr", "mrw",
+    "x3f", "rwl", "erf", "kdc", "dcr", "mef"
+]
+
+func loadDroppedURLs(from providers: [NSItemProvider], completion: @escaping ([URL], Int) -> Void) {
+    var accepted: [URL] = []
+    var rejected = 0
+    let group = DispatchGroup()
+
+    for provider in providers {
+        group.enter()
+        // loadObject(ofClass: NSURL.self) returns the original persistent file URL,
+        // unlike loadFileRepresentation which gives a temp copy deleted after the callback.
+        provider.loadObject(ofClass: NSURL.self) { item, _ in
+            defer { group.leave() }
+            guard let url = item as? URL else { rejected += 1; return }
+            if rawExtensions.contains(url.pathExtension.lowercased()) {
+                accepted.append(url)
+            } else {
+                rejected += 1
+            }
+        }
+    }
+
+    group.notify(queue: .main) { completion(accepted, rejected) }
+}
+
 struct DropZoneView: View {
     let onDrop: ([URL]) -> Void
     @State private var isTargeted = false
@@ -34,17 +63,10 @@ struct DropZoneView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .onDrop(of: [UTType.rawImage], isTargeted: $isTargeted) { providers in
-            var urls: [URL] = []
-            let group = DispatchGroup()
-            for provider in providers {
-                group.enter()
-                provider.loadFileRepresentation(forTypeIdentifier: UTType.rawImage.identifier) { url, _ in
-                    if let url { urls.append(url.standardizedFileURL) }
-                    group.leave()
-                }
+        .onDrop(of: [.fileURL], isTargeted: $isTargeted) { providers in
+            loadDroppedURLs(from: providers) { urls, _ in
+                if !urls.isEmpty { onDrop(urls) }
             }
-            group.notify(queue: .main) { onDrop(urls) }
             return true
         }
         .animation(.easeInOut(duration: 0.15), value: isTargeted)

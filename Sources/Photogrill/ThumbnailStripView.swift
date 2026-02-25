@@ -46,7 +46,7 @@ struct ThumbnailStripView: View {
                     .padding(.bottom, 8)
             }
         }
-        .onDrop(of: [UTType.rawImage, .fileURL], isTargeted: $isTargeted) { providers in
+        .onDrop(of: [.fileURL], isTargeted: $isTargeted) { providers in
             handleDrop(providers: providers)
         }
         .animation(.easeInOut(duration: 0.15), value: isTargeted)
@@ -77,23 +77,7 @@ struct ThumbnailStripView: View {
 
     @discardableResult
     private func handleDrop(providers: [NSItemProvider]) -> Bool {
-        var urls: [URL] = []
-        var rejected = 0
-        let group = DispatchGroup()
-
-        for provider in providers {
-            if provider.hasItemConformingToTypeIdentifier(UTType.rawImage.identifier) {
-                group.enter()
-                provider.loadFileRepresentation(forTypeIdentifier: UTType.rawImage.identifier) { url, _ in
-                    if let url { urls.append(url.standardizedFileURL) }
-                    group.leave()
-                }
-            } else {
-                rejected += 1
-            }
-        }
-
-        group.notify(queue: .main) {
+        loadDroppedURLs(from: providers) { urls, rejected in
             if !urls.isEmpty { appState.add(urls: urls) }
             if rejected > 0 { showDropError() }
         }
