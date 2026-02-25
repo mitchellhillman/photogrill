@@ -102,7 +102,7 @@ struct SettingsPanel: View {
                 }
 
                 // White balance
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 6) {
                     Text("White balance")
                     Picker("", selection: $settings.whiteBalance) {
                         ForEach(WhiteBalance.allCases) { wb in
@@ -111,6 +111,24 @@ struct SettingsPanel: View {
                     }
                     .labelsHidden()
                     .pickerStyle(.menu)
+                    .onChange(of: settings.whiteBalance) { wb in
+                        // Snap kelvin slider to preset value when a preset is chosen
+                        if let k = wb.kelvin { settings.kelvin = Double(k) }
+                    }
+
+                    HStack {
+                        Text("Kelvin")
+                        Spacer()
+                        Text("\(Int(settings.kelvin)) K")
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                    }
+                    Slider(value: $settings.kelvin, in: 2000...10000, step: 50)
+                    HStack {
+                        Text("2000 K").font(.caption2).foregroundStyle(.secondary)
+                        Spacer()
+                        Text("10000 K").font(.caption2).foregroundStyle(.secondary)
+                    }
                 }
 
                 Spacer(minLength: 16)
