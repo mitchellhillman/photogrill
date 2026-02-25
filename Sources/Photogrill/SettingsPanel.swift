@@ -1,6 +1,41 @@
 import SwiftUI
 import AppKit
 
+/// NSSlider wrapper that shows tick marks at every 0.5-stop increment.
+private struct TickedExposureSlider: NSViewRepresentable {
+    @Binding var value: Double
+
+    // -3 … +3 EV, ticks at 0.5-stop intervals → 13 marks
+    private let min = -3.0
+    private let max =  3.0
+    private let tickCount = 13   // (-3, -2.5, …, 0, …, +2.5, +3)
+
+    func makeCoordinator() -> Coordinator { Coordinator(value: $value) }
+
+    func makeNSView(context: Context) -> NSSlider {
+        let slider = NSSlider(value: value, minValue: min, maxValue: max,
+                              target: context.coordinator,
+                              action: #selector(Coordinator.valueChanged(_:)))
+        slider.numberOfTickMarks = tickCount
+        slider.tickMarkPosition  = .below
+        slider.allowsTickMarkValuesOnly = false   // free dragging; ticks are visual only
+        return slider
+    }
+
+    func updateNSView(_ nsView: NSSlider, context: Context) {
+        nsView.doubleValue = value
+    }
+
+    class Coordinator: NSObject {
+        var value: Binding<Double>
+        init(value: Binding<Double>) { self.value = value }
+
+        @objc func valueChanged(_ sender: NSSlider) {
+            value.wrappedValue = sender.doubleValue
+        }
+    }
+}
+
 struct SettingsPanel: View {
     @ObservedObject var settings: ExportSettings
     @ObservedObject var exportEngine: ExportEngine
@@ -79,12 +114,8 @@ struct SettingsPanel: View {
                             .monospacedDigit()
                             .foregroundStyle(.secondary)
                     }
-                    Slider(value: $settings.exposure, in: -3.0...3.0, step: 0.1)
-                    HStack {
-                        Text("-3").font(.caption2).foregroundStyle(.secondary)
-                        Spacer()
-                        Text("+3").font(.caption2).foregroundStyle(.secondary)
-                    }
+                    TickedExposureSlider(value: $settings.exposure)
+                        .frame(height: 28)
                 }
 
                 Divider()
