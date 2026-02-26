@@ -167,11 +167,11 @@ struct SettingsPanel: View {
                     RoundedRectangle(cornerRadius: 3)
                         .fill(LinearGradient(
                             stops: [
-                                .init(color: Color(red: 1.0, green: 0.55, blue: 0.10), location: 0.00), // 2000 K warm amber
-                                .init(color: Color(red: 1.0, green: 0.88, blue: 0.65), location: 0.20), // ~3600 K golden
-                                .init(color: Color(red: 1.0, green: 0.97, blue: 0.95), location: 0.43), // ~5500 K neutral
-                                .init(color: Color(red: 0.80, green: 0.90, blue: 1.00), location: 0.68), // ~7500 K pale blue
-                                .init(color: Color(red: 0.45, green: 0.65, blue: 1.00), location: 1.00), // 10000 K cool blue
+                                .init(color: Color(red: 0.45, green: 0.65, blue: 1.00), location: 0.00), // 10000 K cool blue
+                                .init(color: Color(red: 0.80, green: 0.90, blue: 1.00), location: 0.32), // ~7500 K pale blue
+                                .init(color: Color(red: 1.0, green: 0.97, blue: 0.95), location: 0.57), // ~5500 K neutral
+                                .init(color: Color(red: 1.0, green: 0.88, blue: 0.65), location: 0.80), // ~3600 K golden
+                                .init(color: Color(red: 1.0, green: 0.55, blue: 0.10), location: 1.00), // 2000 K warm amber
                             ],
                             startPoint: .leading,
                             endPoint: .trailing
