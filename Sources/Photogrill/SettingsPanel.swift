@@ -9,7 +9,8 @@ private final class KelvinSliderCell: NSSliderCell {
 
     override func drawBar(inside rect: NSRect, flipped: Bool) {
         NSGraphicsContext.saveGraphicsState()
-        let trackRect = NSRect(x: rect.minX, y: rect.midY - trackHeight / 2,
+        let midY = controlView?.bounds.midY ?? rect.midY
+        let trackRect = NSRect(x: rect.minX, y: midY - trackHeight / 2,
                                width: rect.width, height: trackHeight)
         let path = NSBezierPath(roundedRect: trackRect, xRadius: trackHeight / 2, yRadius: trackHeight / 2)
         path.setClip()
@@ -25,8 +26,9 @@ private final class KelvinSliderCell: NSSliderCell {
 
     override func knobRect(flipped: Bool) -> NSRect {
         let base = super.knobRect(flipped: flipped)
+        let centerY = controlView?.bounds.midY ?? base.midY
         return NSRect(x: base.midX - knobDiameter / 2,
-                      y: base.midY - knobDiameter / 2,
+                      y: centerY - knobDiameter / 2,
                       width: knobDiameter, height: knobDiameter)
     }
 
