@@ -1,6 +1,82 @@
 import SwiftUI
 import AppKit
 
+// MARK: - Kelvin slider with gradient track
+
+private final class KelvinSliderCell: NSSliderCell {
+    private let trackHeight: CGFloat = 6
+    private let knobDiameter: CGFloat = 20
+
+    override func drawBar(inside rect: NSRect, flipped: Bool) {
+        NSGraphicsContext.saveGraphicsState()
+        let trackRect = NSRect(x: rect.minX, y: rect.midY - trackHeight / 2,
+                               width: rect.width, height: trackHeight)
+        let path = NSBezierPath(roundedRect: trackRect, xRadius: trackHeight / 2, yRadius: trackHeight / 2)
+        path.setClip()
+        NSGradient(colors: [
+            NSColor(red: 0.45, green: 0.65, blue: 1.00, alpha: 1), // blue (left)
+            NSColor(red: 0.80, green: 0.90, blue: 1.00, alpha: 1),
+            NSColor(red: 1.0,  green: 0.97, blue: 0.95, alpha: 1),
+            NSColor(red: 1.0,  green: 0.88, blue: 0.65, alpha: 1),
+            NSColor(red: 1.0,  green: 0.55, blue: 0.10, alpha: 1), // amber (right)
+        ])!.draw(in: trackRect, angle: 0)
+        NSGraphicsContext.restoreGraphicsState()
+    }
+
+    override func knobRect(flipped: Bool) -> NSRect {
+        let base = super.knobRect(flipped: flipped)
+        return NSRect(x: base.midX - knobDiameter / 2,
+                      y: base.midY - knobDiameter / 2,
+                      width: knobDiameter, height: knobDiameter)
+    }
+
+    override func drawKnob(_ knobRect: NSRect) {
+        NSGraphicsContext.saveGraphicsState()
+        let shadow = NSShadow()
+        shadow.shadowColor = NSColor.black.withAlphaComponent(0.3)
+        shadow.shadowOffset = NSSize(width: 0, height: -1)
+        shadow.shadowBlurRadius = 4
+        shadow.set()
+        NSColor.white.setFill()
+        NSBezierPath(ovalIn: knobRect.insetBy(dx: 2, dy: 2)).fill()
+        NSGraphicsContext.restoreGraphicsState()
+    }
+}
+
+private struct KelvinSlider: NSViewRepresentable {
+    @Binding var value: Double
+
+    func makeCoordinator() -> Coordinator { Coordinator(value: $value) }
+
+    func makeNSView(context: Context) -> NSSlider {
+        let slider = NSSlider()
+        slider.cell = KelvinSliderCell()
+        slider.minValue = 2000
+        slider.maxValue = 10000
+        slider.doubleValue = value
+        slider.isContinuous = true
+        slider.target = context.coordinator
+        slider.action = #selector(Coordinator.valueChanged(_:))
+        return slider
+    }
+
+    func updateNSView(_ nsView: NSSlider, context: Context) {
+        nsView.doubleValue = value
+    }
+
+    class Coordinator: NSObject {
+        var value: Binding<Double>
+        init(value: Binding<Double>) { self.value = value }
+
+        @objc func valueChanged(_ sender: NSSlider) {
+            // Snap to 50 K steps without tick marks
+            value.wrappedValue = (sender.doubleValue / 50).rounded() * 50
+        }
+    }
+}
+
+// MARK: - Exposure slider with tick marks
+
 /// NSSlider wrapper that shows tick marks at every 0.5-stop increment.
 private struct TickedExposureSlider: NSViewRepresentable {
     @Binding var value: Double
@@ -154,7 +230,7 @@ struct SettingsPanel: View {
                             .monospacedDigit()
                             .foregroundStyle(.secondary)
                     }
-                    Slider(value: Binding(
+                    KelvinSlider(value: Binding(
                         get: { settings.kelvin },
                         set: {
                             settings.kelvin = $0
@@ -162,26 +238,8 @@ struct SettingsPanel: View {
                                 settings.whiteBalance = .custom
                             }
                         }
-                    ), in: 2000...10000, step: 50)
-                    // Gradient legend bar
-                    RoundedRectangle(cornerRadius: 3)
-                        .fill(LinearGradient(
-                            stops: [
-                                .init(color: Color(red: 0.45, green: 0.65, blue: 1.00), location: 0.00), // 10000 K cool blue
-                                .init(color: Color(red: 0.80, green: 0.90, blue: 1.00), location: 0.32), // ~7500 K pale blue
-                                .init(color: Color(red: 1.0, green: 0.97, blue: 0.95), location: 0.57), // ~5500 K neutral
-                                .init(color: Color(red: 1.0, green: 0.88, blue: 0.65), location: 0.80), // ~3600 K golden
-                                .init(color: Color(red: 1.0, green: 0.55, blue: 0.10), location: 1.00), // 2000 K warm amber
-                            ],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        ))
-                        .frame(height: 8)
-                    HStack {
-                        Text("2000 K").font(.caption2).foregroundStyle(.secondary)
-                        Spacer()
-                        Text("10000 K").font(.caption2).foregroundStyle(.secondary)
-                    }
+                    ))
+                    .frame(height: 26)
                 }
 
                 Spacer(minLength: 16)
