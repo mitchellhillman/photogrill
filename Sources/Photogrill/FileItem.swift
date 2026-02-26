@@ -16,6 +16,7 @@ class FileItem: ObservableObject, Identifiable {
     @Published var status: FileStatus = .pending
     @Published var thumbnailImage: CGImage? = nil
     @Published var isThumbnailRendering: Bool = false
+    var asShotKelvin: Double = 5500
 
     var displayName: String { url.lastPathComponent }
 

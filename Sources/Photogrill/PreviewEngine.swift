@@ -72,6 +72,13 @@ struct RenderCore {
         return shared.createCGImage(image, from: image.extent, format: .RGBA8, colorSpace: colorSpace)
     }
 
+    /// Reads the camera-embedded "as shot" color temperature from RAW metadata.
+    static func readAsShotKelvin(url: URL) -> Double {
+        guard let filter = CIRAWFilter(imageURL: url) else { return 5500 }
+        let k = Double(filter.neutralTemperature)
+        return k > 0 ? k : 5500
+    }
+
     /// Cache-backed render. Returns a cached CGImage on hit; renders and caches on miss.
     static func renderCached(url: URL, key: RenderKey, maxLongEdge: Int, colorSpace: CGColorSpace) -> CGImage? {
         let cacheKey = "\(url.path)|\(key.colorProfile.rawValue)|\(key.whiteBalance.rawValue)|\(key.kelvin)|\(key.exposure)|\(maxLongEdge)" as NSString

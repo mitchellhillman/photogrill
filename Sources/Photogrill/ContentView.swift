@@ -34,6 +34,7 @@ class AppState: ObservableObject {
         guard !fresh.isEmpty else { return }
         items.append(contentsOf: fresh)
         if selectedID == nil { selectedID = fresh.first?.id }
+        for item in fresh { fetchAsShotKelvin(for: item) }
         thumbnailBatch.renderAll(items: fresh, settings: settings)
         refreshPreviewIfNeeded()
     }
@@ -49,7 +50,23 @@ class AppState: ObservableObject {
 
     func select(item: FileItem) {
         selectedID = item.id
+        if settings.whiteBalance == .asShot {
+            settings.kelvin = item.asShotKelvin
+        }
         refreshPreviewIfNeeded()
+    }
+
+    private func fetchAsShotKelvin(for item: FileItem) {
+        Task {
+            let url = item.url
+            let k = await Task.detached(priority: .utility) {
+                RenderCore.readAsShotKelvin(url: url)
+            }.value
+            item.asShotKelvin = k
+            if selectedID == item.id && settings.whiteBalance == .asShot {
+                settings.kelvin = k
+            }
+        }
     }
 
     func settingsDidChange() {

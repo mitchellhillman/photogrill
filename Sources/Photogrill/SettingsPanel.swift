@@ -221,8 +221,11 @@ struct SettingsPanel: View {
                     .labelsHidden()
                     .pickerStyle(.menu)
                     .onChange(of: settings.whiteBalance) { wb in
-                        // Snap kelvin slider to preset value when a preset is chosen
-                        if let k = wb.kelvin { settings.kelvin = Double(k) }
+                        if let k = wb.kelvin {
+                            settings.kelvin = Double(k)
+                        } else if wb == .asShot, let k = appState.selectedItem?.asShotKelvin {
+                            settings.kelvin = k
+                        }
                     }
 
                     HStack {
