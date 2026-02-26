@@ -120,6 +120,7 @@ struct SettingsPanel: View {
     @ObservedObject var appState: AppState
 
     var body: some View {
+        VStack(spacing: 0) {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 Text("Settings")
@@ -236,29 +237,32 @@ struct SettingsPanel: View {
                     .controlSize(.small)
                 }
 
-                Spacer(minLength: 16)
-
-                // Actions
-                HStack {
-                    Button("Clear all") {
-                        appState.items.removeAll()
-                        appState.selectedID = nil
-                    }
-                    .foregroundStyle(.red)
-                    Spacer()
-                    Button("Export All") {
-                        exportEngine.exportAll(items: appState.items, settings: settings)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(appState.items.isEmpty || exportEngine.isExporting)
-                }
-
-                if exportEngine.isExporting {
-                    ProgressView("Exporting \(exportEngine.completedCount) / \(appState.items.count)…")
-                        .progressViewStyle(.linear)
-                }
             }
             .padding(12)
+        }
+
+        // Actions — always pinned at the bottom
+        Divider()
+        VStack(spacing: 8) {
+            if exportEngine.isExporting {
+                ProgressView("Exporting \(exportEngine.completedCount) / \(appState.items.count)…")
+                    .progressViewStyle(.linear)
+            }
+            HStack {
+                Button("Clear all") {
+                    appState.items.removeAll()
+                    appState.selectedID = nil
+                }
+                .foregroundStyle(.red)
+                Spacer()
+                Button("Export All") {
+                    exportEngine.exportAll(items: appState.items, settings: settings)
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(appState.items.isEmpty || exportEngine.isExporting)
+            }
+        }
+        .padding(12)
         }
         .background(.ultraThinMaterial)
     }
