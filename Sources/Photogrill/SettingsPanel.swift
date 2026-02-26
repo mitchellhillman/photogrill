@@ -154,7 +154,15 @@ struct SettingsPanel: View {
                             .monospacedDigit()
                             .foregroundStyle(.secondary)
                     }
-                    Slider(value: $settings.kelvin, in: 2000...10000, step: 50)
+                    Slider(value: Binding(
+                        get: { settings.kelvin },
+                        set: {
+                            settings.kelvin = $0
+                            if settings.whiteBalance == .asShot || settings.whiteBalance == .auto {
+                                settings.whiteBalance = .custom
+                            }
+                        }
+                    ), in: 2000...10000, step: 50)
                     // Gradient legend bar
                     RoundedRectangle(cornerRadius: 3)
                         .fill(LinearGradient(

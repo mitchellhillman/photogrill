@@ -20,6 +20,7 @@ enum ColorProfile: String, CaseIterable, Identifiable {
 enum WhiteBalance: String, CaseIterable, Identifiable {
     case asShot     = "As Shot"
     case auto       = "Auto"
+    case custom     = "Custom"
     case daylight   = "Daylight"
     case shade      = "Shade"
     case cloudy     = "Cloudy"
@@ -29,10 +30,10 @@ enum WhiteBalance: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    /// Returns the colour temperature in Kelvin, or nil for As Shot / Auto.
+    /// Returns the colour temperature in Kelvin, or nil for As Shot / Auto / Custom.
     var kelvin: Float? {
         switch self {
-        case .asShot, .auto: return nil
+        case .asShot, .auto, .custom: return nil
         case .daylight:      return 5500
         case .shade:         return 7500
         case .cloudy:        return 6500
