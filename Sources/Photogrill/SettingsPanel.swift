@@ -212,24 +212,8 @@ struct SettingsPanel: View {
 
                 // White balance
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("White balance")
-                    Picker("", selection: $settings.whiteBalance) {
-                        ForEach(WhiteBalance.allCases) { wb in
-                            Text(wb.rawValue).tag(wb)
-                        }
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.menu)
-                    .onChange(of: settings.whiteBalance) { wb in
-                        if let k = wb.kelvin {
-                            settings.kelvin = Double(k)
-                        } else if wb == .asShot, let k = appState.selectedItem?.asShotKelvin {
-                            settings.kelvin = k
-                        }
-                    }
-
                     HStack {
-                        Text("Kelvin")
+                        Text("White balance")
                         Spacer()
                         Text("\(Int(settings.kelvin)) K")
                             .monospacedDigit()
@@ -239,12 +223,17 @@ struct SettingsPanel: View {
                         get: { settings.kelvin },
                         set: {
                             settings.kelvin = $0
-                            if settings.whiteBalance == .asShot || settings.whiteBalance == .auto {
-                                settings.whiteBalance = .custom
-                            }
+                            settings.whiteBalance = .custom
                         }
                     ))
                     .frame(height: 26)
+                    Button("As Shot") {
+                        settings.whiteBalance = .asShot
+                        if let k = appState.selectedItem?.asShotKelvin {
+                            settings.kelvin = k
+                        }
+                    }
+                    .controlSize(.small)
                 }
 
                 Spacer(minLength: 16)
