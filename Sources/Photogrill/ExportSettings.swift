@@ -65,7 +65,7 @@ class ExportSettings: ObservableObject {
     }
 }
 
-struct RenderKey: Equatable {
+struct RenderKey: Equatable, Hashable {
     let colorProfile: ColorProfile
     let whiteBalance: WhiteBalance
     let kelvin: Double

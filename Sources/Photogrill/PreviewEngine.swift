@@ -15,6 +15,19 @@ struct RenderCore {
         return CIContext()
     }()
 
+    // NSCache requires NSObject-compatible values.
+    private final class CGImageBox: NSObject {
+        let image: CGImage
+        init(_ image: CGImage) { self.image = image }
+    }
+
+    /// LRU cache keyed by (url, renderKey, maxLongEdge). Evicts under memory pressure.
+    private static let imageCache: NSCache<NSString, CGImageBox> = {
+        let cache = NSCache<NSString, CGImageBox>()
+        cache.totalCostLimit = 500 * 1024 * 1024  // 500 MB
+        return cache
+    }()
+
     /// Creates and configures a CIRAWFilter from a RenderKey.
     static func makeFilter(url: URL, key: RenderKey) -> CIRAWFilter? {
         guard let filter = CIRAWFilter(imageURL: url) else { return nil }
@@ -58,6 +71,20 @@ struct RenderCore {
 
         return shared.createCGImage(image, from: image.extent, format: .RGBA8, colorSpace: colorSpace)
     }
+
+    /// Cache-backed render. Returns a cached CGImage on hit; renders and caches on miss.
+    static func renderCached(url: URL, key: RenderKey, maxLongEdge: Int, colorSpace: CGColorSpace) -> CGImage? {
+        let cacheKey = "\(url.path)|\(key.colorProfile.rawValue)|\(key.whiteBalance.rawValue)|\(key.kelvin)|\(key.exposure)|\(maxLongEdge)" as NSString
+        if let box = imageCache.object(forKey: cacheKey) {
+            return box.image
+        }
+        guard let filter = makeFilter(url: url, key: key),
+              let cgImage = render(filter: filter, maxLongEdge: maxLongEdge, colorSpace: colorSpace)
+        else { return nil }
+        let cost = cgImage.bytesPerRow * cgImage.height
+        imageCache.setObject(CGImageBox(cgImage), forKey: cacheKey, cost: cost)
+        return cgImage
+    }
 }
 
 // MARK: - Large preview
@@ -82,14 +109,13 @@ class PreviewEngine: ObservableObject {
         previewTask = Task { [weak self] in
             guard let self else { return }
 
-            // Debounce — suspends on main actor, but that's fine for 250ms
-            try? await Task.sleep(nanoseconds: 250_000_000)
+            // Debounce — suspends on main actor, but that's fine for 50ms
+            try? await Task.sleep(nanoseconds: 50_000_000)
             guard !Task.isCancelled else { self.isRendering = false; return }
 
-            // Render on a background thread
+            // Render on a background thread (cache hit returns immediately)
             let cgImage = await Task.detached(priority: .userInitiated) {
-                guard let filter = RenderCore.makeFilter(url: url, key: key) else { return nil as CGImage? }
-                return RenderCore.render(filter: filter, maxLongEdge: 1200, colorSpace: colorSpace)
+                return RenderCore.renderCached(url: url, key: key, maxLongEdge: 1200, colorSpace: colorSpace)
             }.value
 
             guard !Task.isCancelled else { self.isRendering = false; return }
@@ -146,10 +172,9 @@ class ThumbnailBatch: ObservableObject {
 
                 guard !Task.isCancelled else { return }
 
-                // Phase 2: accurate CIRAWFilter render (background)
+                // Phase 2: accurate CIRAWFilter render (cache hit returns immediately)
                 let accurateThumb = await Task.detached(priority: .background) { () -> CGImage? in
-                    guard let filter = RenderCore.makeFilter(url: entry.url, key: key) else { return nil }
-                    return RenderCore.render(filter: filter, maxLongEdge: 200, colorSpace: colorSpace)
+                    return RenderCore.renderCached(url: entry.url, key: key, maxLongEdge: 200, colorSpace: colorSpace)
                 }.value
 
                 if let img = accurateThumb,
