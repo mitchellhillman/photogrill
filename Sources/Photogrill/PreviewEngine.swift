@@ -29,7 +29,7 @@ struct RenderCore {
     }()
 
     /// Creates and configures a CIRAWFilter from a RenderKey.
-    static func makeFilter(url: URL, key: RenderKey) -> CIRAWFilter? {
+    static func makeFilter(url: URL, key: RenderKey, draftMode: Bool = false) -> CIRAWFilter? {
         guard let filter = CIRAWFilter(imageURL: url) else { return nil }
 
         // For preset/custom temperatures, set neutralTemperature from key.kelvin.
@@ -43,6 +43,7 @@ struct RenderCore {
         }
 
         filter.exposure = Float(key.exposure)
+        filter.isDraftModeEnabled = draftMode
         return filter
     }
 
@@ -80,12 +81,12 @@ struct RenderCore {
     }
 
     /// Cache-backed render. Returns a cached CGImage on hit; renders and caches on miss.
-    static func renderCached(url: URL, key: RenderKey, maxLongEdge: Int, colorSpace: CGColorSpace) -> CGImage? {
-        let cacheKey = "\(url.path)|\(key.colorProfile.rawValue)|\(key.whiteBalance.rawValue)|\(key.kelvin)|\(key.exposure)|\(maxLongEdge)" as NSString
+    static func renderCached(url: URL, key: RenderKey, maxLongEdge: Int, colorSpace: CGColorSpace, draftMode: Bool = false) -> CGImage? {
+        let cacheKey = "\(url.path)|\(key.colorProfile.rawValue)|\(key.whiteBalance.rawValue)|\(key.kelvin)|\(key.exposure)|\(maxLongEdge)|\(draftMode)" as NSString
         if let box = imageCache.object(forKey: cacheKey) {
             return box.image
         }
-        guard let filter = makeFilter(url: url, key: key),
+        guard let filter = makeFilter(url: url, key: key, draftMode: draftMode),
               let cgImage = render(filter: filter, maxLongEdge: maxLongEdge, colorSpace: colorSpace)
         else { return nil }
         let cost = cgImage.bytesPerRow * cgImage.height
@@ -122,7 +123,7 @@ class PreviewEngine: ObservableObject {
 
             // Render on a background thread (cache hit returns immediately)
             let cgImage = await Task.detached(priority: .userInitiated) {
-                return RenderCore.renderCached(url: url, key: key, maxLongEdge: 1200, colorSpace: colorSpace)
+                return RenderCore.renderCached(url: url, key: key, maxLongEdge: 1200, colorSpace: colorSpace, draftMode: true)
             }.value
 
             guard !Task.isCancelled else { self.isRendering = false; return }
@@ -181,7 +182,7 @@ class ThumbnailBatch: ObservableObject {
 
                 // Phase 2: accurate CIRAWFilter render (cache hit returns immediately)
                 let accurateThumb = await Task.detached(priority: .background) { () -> CGImage? in
-                    return RenderCore.renderCached(url: entry.url, key: key, maxLongEdge: 200, colorSpace: colorSpace)
+                    return RenderCore.renderCached(url: entry.url, key: key, maxLongEdge: 200, colorSpace: colorSpace, draftMode: true)
                 }.value
 
                 if let img = accurateThumb,
