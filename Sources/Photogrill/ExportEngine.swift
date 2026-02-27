@@ -38,17 +38,26 @@ class ExportEngine: ObservableObject {
                 entry.item.status = .processing(0)
 
                 // Render in background, await result back on main actor
-                let renderResult = await Task.detached(priority: .userInitiated) { () -> (CGImage?, String?) in
+                let renderResult = await Task.detached(priority: .userInitiated) { () -> (CGImage?, [CFString: Any]?, Date?, String?) in
+                    // Read source metadata
+                    var sourceMetadata: [CFString: Any]? = nil
+                    if let src = CGImageSourceCreateWithURL(entry.url as CFURL, nil) {
+                        sourceMetadata = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any]
+                    }
+
+                    // Preserve file creation date
+                    let creationDate = (try? FileManager.default.attributesOfItem(atPath: entry.url.path))?[.creationDate] as? Date
+
                     guard let filter = RenderCore.makeFilter(url: entry.url, key: renderKey) else {
-                        return (nil, "Could not open RAW file")
+                        return (nil, nil, nil, "Could not open RAW file")
                     }
                     guard let img = RenderCore.render(filter: filter, maxLongEdge: maxDim, colorSpace: colorSpace) else {
-                        return (nil, "Render failed")
+                        return (nil, nil, nil, "Render failed")
                     }
-                    return (img, nil)
+                    return (img, sourceMetadata, creationDate, nil)
                 }.value
 
-                let (cgImage, renderError) = renderResult
+                let (cgImage, sourceMetadata, creationDate, renderError) = renderResult
 
                 if let msg = renderError {
                     entry.item.status = .failed(msg)
@@ -67,11 +76,28 @@ class ExportEngine: ObservableObject {
                     continue
                 }
 
-                CGImageDestinationAddImage(dest, cgImage, [
-                    kCGImageDestinationLossyCompressionQuality: quality
-                ] as CFDictionary)
+                // Build properties: copy metadata from source, then add JPEG quality
+                var props: [CFString: Any] = [kCGImageDestinationLossyCompressionQuality: quality]
+                if let meta = sourceMetadata {
+                    for key in [kCGImagePropertyExifDictionary,
+                                kCGImagePropertyExifAuxDictionary,
+                                kCGImagePropertyGPSDictionary,
+                                kCGImagePropertyIPTCDictionary,
+                                kCGImagePropertyTIFFDictionary] as [CFString] {
+                        if let val = meta[key] { props[key] = val }
+                    }
+                }
+
+                CGImageDestinationAddImage(dest, cgImage, props as CFDictionary)
 
                 if CGImageDestinationFinalize(dest) {
+                    // Restore original file creation date
+                    if let date = creationDate {
+                        try? FileManager.default.setAttributes(
+                            [.creationDate: date, .modificationDate: date],
+                            ofItemAtPath: entry.destURL.path
+                        )
+                    }
                     entry.item.status = .done
                     self.completedCount += 1
                 } else {
